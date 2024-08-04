@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Ahorros</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .navbar {
+            background-color: #4CAF50;
+        }
+        .navbar-nav {
+            
+            justify-content: space-between;
+        }
+        .navbar-brand {
+            color: white;
+            font-weight: bold;
+            margin-left: 20px;
+        }
+        .navbar-toggler-icon {
+            filter: invert(1);
+        }
+        .nav-link {
+            color: white;
+            font-weight: bold;
+        }
+        .welcome-message {
+            color: #FFC107;
+            font-weight: bold;
+            font-size: 1.2em;
+            text-align: center;
+        }
+        .container {
+            padding: 20px;
+            background: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        .messages .alert {
+            margin-bottom: 10px;
+        }
+        .card {
+            border-radius: 15px;
+            border: none;
+            height: 100%;
+        }
+        .progress {
+            border-radius: 15px;
+            height: 30px;
+        }
+        .progress-bar {
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        .table th {
+            font-weight: 600;
+        }
+        .badge {
+            font-size: 0.9em;
+        }
+        @media (max-width: 767.98px) {
+            .card {
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container-fluid">
+          <a class="navbar-brand text-white ms-3" href="{% url 'dashboard' %}">Moneda</a>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
+            <ul class="navbar-nav mx-auto">
+              <li class="nav-item">
+                <span class="nav-link text-white welcome-message">
+                  {% if user.is_authenticated %}
+                    Bienvenido, {{ user.username }}
+                  {% else %}
+                    Bienvenido
+                  {% endif %}
+                </span>
+              </li>
+            </ul>
+            <ul class="navbar-nav">
+              {% if user.is_authenticated %}
+                <li class="nav-item">
+                  <a class="nav-link text-white" href="{% url 'cerrar_sesion' %}">Cerrar sesión</a>
+                </li>
+              {% endif %}
+            </ul>
+          </div>
+        </div>
+      </nav>
+
+    <div class="container mt-4">
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            setTimeout(() => {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(alert => {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                });
+            }, 3000); 
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabla = document.querySelector('.table');
+            const tbody = document.getElementById('transacciones-body');
+            const busquedaMonto = document.getElementById('busqueda-monto');
+            const transaccionesOriginales = Array.from(tbody.querySelectorAll('tr'));
+    
+            window.buscarPorMonto = function() {
+                const montoFiltro = parseFloat(busquedaMonto.value);
+    
+                if (isNaN(montoFiltro)) {
+                    // Si no se ingresa un número válido, mostrar todas las transacciones
+                    tbody.innerHTML = '';
+                    transaccionesOriginales.forEach(fila => tbody.appendChild(fila.cloneNode(true)));
+                    return;
+                }
+    
+                const transaccionesFiltradas = transaccionesOriginales.filter(fila => {
+                    const montoFila = parseFloat(fila.cells[2].textContent.replace('S/. ', ''));
+                    return Math.abs(montoFila - montoFiltro) < 0.01; // Usar una pequeña tolerancia para comparaciones de punto flotante
+                });
+    
+                tbody.innerHTML = '';
+                if (transaccionesFiltradas.length > 0) {
+                    transaccionesFiltradas.forEach(fila => tbody.appendChild(fila.cloneNode(true)));
+                } else {
+                    const filaNoResultados = document.createElement('tr');
+                    filaNoResultados.innerHTML = '<td colspan="4" class="text-center">No se encontraron transacciones con ese monto exacto.</td>';
+                    tbody.appendChild(filaNoResultados);
+                }
+            }
+    
+            // Agregar evento para buscar al presionar Enter en el campo de búsqueda
+            busquedaMonto.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    buscarPorMonto();
+                }
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+        const tabla = document.querySelector('.table');
+        const filas = tabla.querySelectorAll('tbody tr');
+        const tipoFiltro = document.getElementById('tipo-filtro');
+        const filtroFechaContainer = document.getElementById('filtro-fecha-container');
+        const filtroMontoContainer = document.getElementById('filtro-monto-container');
+        const filtroFecha = document.getElementById('filtro-fecha');
+        const filtroMonto = document.getElementById('filtro-monto');
+    
+        function mostrarFiltroSeleccionado() {
+            const tipoFiltroSeleccionado = tipoFiltro.value;
+            filtroFechaContainer.style.display = tipoFiltroSeleccionado === 'fecha' ? 'block' : 'none';
+            filtroMontoContainer.style.display = tipoFiltroSeleccionado === 'monto' ? 'block' : 'none';
+        }
+    
+        function aplicarFiltros() {
+            const tipoFiltroSeleccionado = tipoFiltro.value;
+            const fecha = filtroFecha.value;
+            const monto = parseFloat(filtroMonto.value) || 0;
+    
+            filas.forEach(fila => {
+                const fechaFila = fila.cells[0].textContent.split(' ')[0]; // Obtener solo la fecha
+                const montoFila = parseFloat(fila.cells[2].textContent.replace('S/. ', ''));
+    
+                let mostrarFila = true;
+    
+                if (tipoFiltroSeleccionado === 'fecha' && fecha) {
+                    mostrarFila = fechaFila === fecha;
+                } else if (tipoFiltroSeleccionado === 'monto' && monto) {
+                    mostrarFila = montoFila >= monto;
+                }
+    
+                fila.style.display = mostrarFila ? '' : 'none';
+            });
+        }
+    
+        tipoFiltro.addEventListener('change', function() {
+            mostrarFiltroSeleccionado();
+            aplicarFiltros();
+        });
+    
+        filtroFecha.addEventListener('change', aplicarFiltros);
+        filtroMonto.addEventListener('input', aplicarFiltros);
+    
+        // Mostrar el filtro correcto al cargar la página
+        mostrarFiltroSeleccionado();
+        
+    
+    
+            // Función para mostrar solo las primeras 4 filas
+            function mostrarPrimerasCuatroFilas() {
+                filas.forEach((fila, index) => {
+                    if (index < 4) {
+                        fila.style.display = '';
+                    } else {
+                        fila.style.display = 'none';
+                    }
+                });
+            }
+    
+            // Mostrar inicialmente solo 4 filas
+            mostrarPrimerasCuatroFilas();
+    
+            function aplicarFiltros() {
+                const tipoFiltroSeleccionado = tipoFiltro.value;
+                const fecha = filtroFecha.value;
+                const monto = parseFloat(filtroMonto.value) || 0;
+    
+                filas.forEach(fila => {
+                    const fechaFila = fila.cells[0].textContent;
+                    const montoFila = parseFloat(fila.cells[2].textContent.replace('S/. ', ''));
+    
+                    let mostrarFila = true;
+    
+                    if (tipoFiltroSeleccionado === 'fecha' && fecha) {
+                        mostrarFila = fechaFila.includes(fecha);
+                    } else if (tipoFiltroSeleccionado === 'monto') {
+                        mostrarFila = montoFila >= monto;
+                    }
+    
+                    fila.style.display = mostrarFila ? '' : 'none';
+                });
+            }
+    
+            tipoFiltro.addEventListener('change', function() {
+                filtroFechaContainer.style.display = this.value === 'fecha' ? 'block' : 'none';
+                filtroMontoContainer.style.display = this.value === 'monto' ? 'block' : 'none';
+                aplicarFiltros();
+            });
+    
+            filtroFecha.addEventListener('change', aplicarFiltros);
+            filtroMonto.addEventListener('input', aplicarFiltros);
+    
+            // Mostrar más filas al hacer scroll
+            const tableContainer = document.querySelector('.table-responsive');
+            tableContainer.addEventListener('scroll', function() {
+                if (tableContainer.scrollTop + tableContainer.clientHeight >= tableContainer.scrollHeight - 50) {
+                    filas.forEach(fila => {
+                        fila.style.display = '';
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
